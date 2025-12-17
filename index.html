@@ -143,6 +143,15 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            transition: transform 0.1s ease-out;
+        }
+        
+        .cookie-half.dragging {
+            transition: none;
+        }
+        
+        .cookie-half.snap-back {
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
         
         .cookie-left {
@@ -290,6 +299,114 @@
                 font-size: 18px;
             }
         }
+        
+        /* === MICROINTERACCIONES === */
+        
+        /* Partículas flotantes - movimiento errático tipo luciérnaga */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.4;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.6);
+            animation: floatErratic linear infinite;
+        }
+        
+        .particle:nth-child(1) {
+            left: 10%;
+            animation-duration: 8s;
+            animation-delay: 0s;
+        }
+        
+        .particle:nth-child(2) {
+            left: 30%;
+            animation-duration: 12s;
+            animation-delay: 2s;
+        }
+        
+        .particle:nth-child(3) {
+            left: 50%;
+            animation-duration: 10s;
+            animation-delay: 4s;
+        }
+        
+        .particle:nth-child(4) {
+            left: 70%;
+            animation-duration: 15s;
+            animation-delay: 1s;
+        }
+        
+        .particle:nth-child(5) {
+            left: 85%;
+            animation-duration: 11s;
+            animation-delay: 3s;
+        }
+        
+        .particle:nth-child(6) {
+            left: 95%;
+            animation-duration: 13s;
+            animation-delay: 5s;
+        }
+        
+        @keyframes floatErratic {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            5% {
+                opacity: 0.8;
+            }
+            20% {
+                transform: translateY(75vh) translateX(-15px);
+            }
+            40% {
+                transform: translateY(50vh) translateX(25px);
+            }
+            60% {
+                transform: translateY(25vh) translateX(-10px);
+            }
+            80% {
+                transform: translateY(10vh) translateX(15px);
+            }
+            95% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-5vh) translateX(0);
+                opacity: 0;
+            }
+        }
+        
+        /* Pulse suave en "Venga, ¡ábrela!" */
+        #screen-cookie .dialogue-text {
+            animation: gentlePulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes gentlePulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+        
+        /* Transición suave para cambios de background */
+        body {
+            transition: background-image 2s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -341,12 +458,12 @@
     
     <!-- Screen 4: Galleta -->
     <div class="screen" id="screen-cookie">
-        <div class="cookie-container" onclick="openCookie()">
-            <div class="cookie-wrapper">
-                <div class="cookie-half cookie-left">
+        <div class="cookie-container" id="cookie-container">
+            <div class="cookie-wrapper" id="cookie-wrapper">
+                <div class="cookie-half cookie-left" id="cookie-left">
                     <img id="cookie-img-left" src="" alt="Galleta" class="cookie-img">
                 </div>
-                <div class="cookie-half cookie-right">
+                <div class="cookie-half cookie-right" id="cookie-right">
                     <img id="cookie-img-right" src="" alt="Galleta" class="cookie-img">
                 </div>
             </div>
@@ -368,6 +485,16 @@
                 <button class="restart-btn" onclick="restart()">Gracias</button>
             </div>
         </div>
+    </div>
+    
+    <!-- Partículas flotantes de fondo -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
     </div>
     
     <script>
@@ -616,6 +743,114 @@ const NEW_ASSETS = {
             }
         }
         
+        // Sistema de drag para abrir la galleta
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let separationDistance = 0;
+        const OPEN_THRESHOLD = 60; // píxeles de separación para abrir
+        let dragStartTime = 0;
+        const TAP_TIME_THRESHOLD = 200; // ms para considerar tap
+        const TAP_DISTANCE_THRESHOLD = 10; // px para considerar tap
+        
+        function initCookieDrag() {
+            const container = document.getElementById('cookie-container');
+            const leftHalf = document.getElementById('cookie-left');
+            const rightHalf = document.getElementById('cookie-right');
+            
+            if (!container || !leftHalf || !rightHalf) return;
+            
+            // Touch events
+            container.addEventListener('touchstart', handleDragStart, { passive: false });
+            container.addEventListener('touchmove', handleDragMove, { passive: false });
+            container.addEventListener('touchend', handleDragEnd, { passive: false });
+            
+            // Mouse events (desktop fallback)
+            container.addEventListener('mousedown', handleDragStart);
+            container.addEventListener('mousemove', handleDragMove);
+            container.addEventListener('mouseup', handleDragEnd);
+        }
+        
+        function handleDragStart(e) {
+            isDragging = true;
+            dragStartTime = Date.now();
+            
+            const point = e.touches ? e.touches[0] : e;
+            startX = point.clientX;
+            startY = point.clientY;
+            
+            const leftHalf = document.getElementById('cookie-left');
+            const rightHalf = document.getElementById('cookie-right');
+            
+            leftHalf.classList.add('dragging');
+            rightHalf.classList.add('dragging');
+            leftHalf.classList.remove('snap-back');
+            rightHalf.classList.remove('snap-back');
+            
+            if (e.preventDefault) e.preventDefault();
+        }
+        
+        function handleDragMove(e) {
+            if (!isDragging) return;
+            
+            const point = e.touches ? e.touches[0] : e;
+            const deltaX = point.clientX - startX;
+            const deltaY = point.clientY - startY;
+            
+            // Calcular separación (valor absoluto del movimiento horizontal)
+            separationDistance = Math.abs(deltaX);
+            
+            const leftHalf = document.getElementById('cookie-left');
+            const rightHalf = document.getElementById('cookie-right');
+            
+            // Limitar la separación máxima visual
+            const maxVisualSeparation = OPEN_THRESHOLD * 1.2;
+            const visualSeparation = Math.min(separationDistance, maxVisualSeparation);
+            
+            // Mover las mitades
+            if (deltaX < 0) {
+                // Arrastrando hacia la izquierda
+                leftHalf.style.transform = `translateX(-${visualSeparation}px)`;
+                rightHalf.style.transform = `translateX(${visualSeparation * 0.5}px)`;
+            } else {
+                // Arrastrando hacia la derecha
+                leftHalf.style.transform = `translateX(-${visualSeparation * 0.5}px)`;
+                rightHalf.style.transform = `translateX(${visualSeparation}px)`;
+            }
+            
+            if (e.preventDefault) e.preventDefault();
+        }
+        
+        function handleDragEnd(e) {
+            if (!isDragging) return;
+            
+            const dragDuration = Date.now() - dragStartTime;
+            
+            const leftHalf = document.getElementById('cookie-left');
+            const rightHalf = document.getElementById('cookie-right');
+            
+            leftHalf.classList.remove('dragging');
+            rightHalf.classList.remove('dragging');
+            
+            // Detectar tap (click rápido sin mucho movimiento)
+            if (dragDuration < TAP_TIME_THRESHOLD && separationDistance < TAP_DISTANCE_THRESHOLD) {
+                // Es un tap simple - abrir directamente
+                openCookie();
+            } else if (separationDistance >= OPEN_THRESHOLD) {
+                // Arrastró lo suficiente - abrir con animación
+                openCookie();
+            } else {
+                // No llegó al umbral - volver a la posición original (efecto elástico)
+                leftHalf.classList.add('snap-back');
+                rightHalf.classList.add('snap-back');
+                leftHalf.style.transform = 'translateX(0)';
+                rightHalf.style.transform = 'translateX(0)';
+            }
+            
+            isDragging = false;
+            separationDistance = 0;
+        }
+        
         // Inicializar
         setTimeBasedAssets();
         
@@ -651,6 +886,9 @@ const NEW_ASSETS = {
             }
             document.getElementById('cookie-img-left').src = cookieSrc;
             document.getElementById('cookie-img-right').src = cookieSrc;
+            
+            // Inicializar drag después de un pequeño delay para asegurar que el DOM está listo
+            setTimeout(initCookieDrag, 100);
         }
         
         function confirmNo() {
@@ -676,6 +914,9 @@ const NEW_ASSETS = {
             }
             document.getElementById('cookie-img-left').src = cookieSrc;
             document.getElementById('cookie-img-right').src = cookieSrc;
+            
+            // Inicializar drag
+            setTimeout(initCookieDrag, 100);
         }
         
         function showScreen(screenId) {
@@ -703,7 +944,28 @@ const NEW_ASSETS = {
             
             const fortune = `${opening} ${middle} ${message}.<br><br>${closing}.`;
             
-            document.getElementById('fortune-text').innerHTML = fortune;
+            // Typing effect
+            const fortuneElement = document.getElementById('fortune-text');
+            fortuneElement.innerHTML = '';
+            
+            let index = 0;
+            const text = fortune;
+            
+            function typeWriter() {
+                if (index < text.length) {
+                    // Si encontramos <br>, añadimos el tag completo
+                    if (text.substr(index, 4) === '<br>') {
+                        fortuneElement.innerHTML += '<br>';
+                        index += 4;
+                    } else {
+                        fortuneElement.innerHTML += text.charAt(index);
+                        index++;
+                    }
+                    setTimeout(typeWriter, 30); // 30ms por letra = rápido pero visible
+                }
+            }
+            
+            typeWriter();
         }
         
         function restart() {
@@ -712,6 +974,18 @@ const NEW_ASSETS = {
             // Reset cookie wrapper
             const wrapper = document.querySelector('.cookie-wrapper');
             if (wrapper) wrapper.classList.remove('breaking');
+            
+            // Reset cookie halves position
+            const leftHalf = document.getElementById('cookie-left');
+            const rightHalf = document.getElementById('cookie-right');
+            if (leftHalf) {
+                leftHalf.style.transform = 'translateX(0)';
+                leftHalf.classList.remove('dragging', 'snap-back');
+            }
+            if (rightHalf) {
+                rightHalf.style.transform = 'translateX(0)';
+                rightHalf.classList.remove('dragging', 'snap-back');
+            }
             
             // Volver al panda default y mostrarlo
             document.getElementById('character-img').src = ASSETS_BASE.default;
