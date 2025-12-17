@@ -263,12 +263,12 @@
             
             .dialogue-box {
                 padding: 25px 30px 15px;
-                height: 28vh;
+                height: 30vh;
             }
             
             .fortune-paper {
                 padding: 25px 30px 15px;
-                height: 28vh;
+                height: 30vh;
             }
             
             .dialogue-text {
@@ -743,6 +743,29 @@ const NEW_ASSETS = {
             }
         }
         
+        // Feedback háptico
+        function triggerHaptic(intensity = 'medium') {
+            // Verificar si el dispositivo soporta vibración
+            if ('vibrate' in navigator) {
+                switch(intensity) {
+                    case 'light':
+                        navigator.vibrate(10); // Vibración muy ligera
+                        break;
+                    case 'medium':
+                        navigator.vibrate(20); // Vibración media
+                        break;
+                    case 'strong':
+                        navigator.vibrate([30, 10, 30]); // Patrón más fuerte
+                        break;
+                }
+            }
+            
+            // Alternativa: Vibration API más moderna (si está disponible)
+            if (window.navigator && window.navigator.vibrate) {
+                // Ya manejado arriba
+            }
+        }
+        
         // Sistema de drag para abrir la galleta
         let isDragging = false;
         let startX = 0;
@@ -752,6 +775,7 @@ const NEW_ASSETS = {
         let dragStartTime = 0;
         const TAP_TIME_THRESHOLD = 200; // ms para considerar tap
         const TAP_DISTANCE_THRESHOLD = 10; // px para considerar tap
+        let thresholdReached = false; // Para dar feedback háptico solo una vez al alcanzar umbral
         
         function initCookieDrag() {
             const container = document.getElementById('cookie-container');
@@ -787,6 +811,9 @@ const NEW_ASSETS = {
             leftHalf.classList.remove('snap-back');
             rightHalf.classList.remove('snap-back');
             
+            // Feedback háptico ligero al empezar a tocar
+            triggerHaptic('light');
+            
             if (e.preventDefault) e.preventDefault();
         }
         
@@ -798,7 +825,14 @@ const NEW_ASSETS = {
             const deltaY = point.clientY - startY;
             
             // Calcular separación (valor absoluto del movimiento horizontal)
+            const previousSeparation = separationDistance;
             separationDistance = Math.abs(deltaX);
+            
+            // Feedback háptico al alcanzar el umbral por primera vez
+            if (!thresholdReached && separationDistance >= OPEN_THRESHOLD) {
+                thresholdReached = true;
+                triggerHaptic('medium');
+            }
             
             const leftHalf = document.getElementById('cookie-left');
             const rightHalf = document.getElementById('cookie-right');
@@ -835,12 +869,15 @@ const NEW_ASSETS = {
             // Detectar tap (click rápido sin mucho movimiento)
             if (dragDuration < TAP_TIME_THRESHOLD && separationDistance < TAP_DISTANCE_THRESHOLD) {
                 // Es un tap simple - abrir directamente
+                triggerHaptic('medium');
                 openCookie();
             } else if (separationDistance >= OPEN_THRESHOLD) {
                 // Arrastró lo suficiente - abrir con animación
+                triggerHaptic('strong');
                 openCookie();
             } else {
                 // No llegó al umbral - volver a la posición original (efecto elástico)
+                triggerHaptic('light');
                 leftHalf.classList.add('snap-back');
                 rightHalf.classList.add('snap-back');
                 leftHalf.style.transform = 'translateX(0)';
@@ -849,6 +886,7 @@ const NEW_ASSETS = {
             
             isDragging = false;
             separationDistance = 0;
+            thresholdReached = false; // Reset para el próximo drag
         }
         
         // Inicializar
